@@ -1,19 +1,39 @@
 'use client';
 import styles from "./page.module.css";
-import { NetworkTables, NetworkTablesTypeInfos } from 'ntcore-ts-client';
-import { useState } from "react";
-
-const ntcore = NetworkTables.getInstanceByURI('localhost', 5810);
-const autoModeTopic = ntcore.createTopic<string>('/ReactDash/Main/dpub/example', NetworkTablesTypeInfos.kString, 'Primary');
-await autoModeTopic.publish();
+import { NetworkTables, NetworkTablesTopic, NetworkTablesTypeInfos } from 'ntcore-ts-client';
+import { useEffect, useState } from "react";
 
 export default function Home() {
+  const [ntCore, setNtCore] = useState<NetworkTables | undefined>(undefined);
+  const [autoModeTopic, setSutoModeTopic] = useState<NetworkTablesTopic<string> | undefined>(undefined);
   const [example, setExample] = useState("Primary");
+
+  const handleTopicUpdateFromServer = (val: string) => {
+    setExample(val);
+  }
   
   const handleClick = (val: string) => {
-    autoModeTopic.setValue(val);
-    setExample(val);
+    autoModeTopic?.setValue(val);
   };
+
+  const initialize = async () => {
+    if (ntCore != null) {
+      return;
+    }
+
+    const localNtCore = NetworkTables.getInstanceByURI('localhost', 5810);
+    setNtCore(localNtCore);
+    const localAutoModeTopic = localNtCore.createTopic<string>('/ReactDash/Main/dpub/example', NetworkTablesTypeInfos.kString, 'Primary');
+    setSutoModeTopic(localAutoModeTopic);
+    await localAutoModeTopic.publish();
+
+    localNtCore.createTopic<string>('/ReactDash/Main/rpub/example', NetworkTablesTypeInfos.kString, "Primary")
+      .subscribe((value: string | null) => { handleTopicUpdateFromServer(value ?? "Primary"); });
+  }
+
+  useEffect(() => {
+    initialize();
+  }, [])
 
   return (
     <div className={styles.page}>
